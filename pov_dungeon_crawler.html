@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a0f;font-family:'Georgia',serif;}
+#app{width:100%;max-width:680px;margin:0 auto;}
+
+#game-wrap{position:relative;width:100%;background:#0a0a0f;border-radius:12px;overflow:hidden;border:2px solid #3a2a5a;}
+
+canvas#scene{display:block;width:100%;height:340px;}
+
+#hud{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;z-index:5;}
+#hearts{font-size:20px;letter-spacing:3px;filter:drop-shadow(0 0 4px #ff4444);}
+#room-info{color:#c8a96e;font-size:12px;letter-spacing:1px;text-shadow:0 0 8px #c8a96e;}
+#score-disp{color:#f0d060;font-size:13px;font-weight:bold;text-shadow:0 0 8px #f0d060;}
+
+#scroll-btn{position:absolute;bottom:162px;right:12px;z-index:10;background:rgba(40,20,80,0.9);border:1px solid #9966ff;color:#ccaaff;padding:7px 11px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Georgia',serif;letter-spacing:0.5px;}
+#scroll-btn:hover{background:rgba(60,30,110,0.95);}
+
+#scroll-overlay{display:none;position:absolute;inset:0;background:rgba(5,3,15,0.96);z-index:20;padding:18px;overflow-y:auto;border-radius:12px;}
+#scroll-overlay.open{display:block;}
+#scroll-inner{color:#d4c8a0;font-size:13px;line-height:1.75;}
+#scroll-inner h2{color:#c8a96e;font-size:15px;margin-bottom:0.75rem;letter-spacing:1px;}
+#scroll-inner h3{color:#a890d0;font-size:13px;margin:1rem 0 0.4rem;letter-spacing:0.5px;}
+#scroll-close{float:right;background:none;border:none;color:#cc6644;font-size:20px;cursor:pointer;margin-left:8px;}
+
+#question-area{background:#0e0b1a;border-top:2px solid #2a1a4a;padding:14px 16px 12px;}
+#q-header{color:#c8a96e;font-size:11px;letter-spacing:2px;margin-bottom:6px;}
+#q-text{color:#e8e0d0;font-size:13.5px;line-height:1.6;margin-bottom:10px;min-height:36px;}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.opt{background:#13102a;border:1px solid #3a3060;color:#c0b8e0;padding:9px 12px;border-radius:7px;cursor:pointer;font-size:12px;line-height:1.4;text-align:left;transition:all 0.15s;font-family:'Georgia',serif;}
+.opt:hover:not(:disabled){background:#1e1840;border-color:#6655aa;}
+.opt.correct{background:#0f3020;border-color:#44cc66;color:#88ffaa;}
+.opt.wrong{background:#320f0f;border-color:#cc4444;color:#ffaaaa;}
+.opt:disabled{cursor:default;}
+#feedback{color:#f0d060;font-size:12px;min-height:16px;margin-top:8px;text-align:center;letter-spacing:0.5px;}
+
+#start-screen,#gameover-screen,#results-screen{display:none;position:absolute;inset:0;background:rgba(8,5,18,0.97);z-index:30;padding:2rem;text-align:center;overflow-y:auto;}
+.gs-title{color:#c8a96e;font-size:24px;letter-spacing:2px;margin-bottom:0.5rem;}
+.gs-sub{color:#7766aa;font-size:13px;margin-bottom:1.5rem;line-height:1.6;}
+.gs-btn{background:#1e1040;border:2px solid #7744cc;color:#ccaaff;padding:10px 28px;border-radius:8px;cursor:pointer;font-size:14px;font-family:'Georgia',serif;letter-spacing:1px;margin:6px;}
+.gs-btn:hover{background:#2e1860;}
+.gs-btn.red{border-color:#cc4444;color:#ffaaaa;background:#2a1010;}
+
+#results-list{text-align:left;margin-top:1rem;}
+.rrow{display:flex;gap:10px;background:#0f0c20;border-radius:7px;padding:10px 12px;margin-bottom:6px;font-size:12px;border-left:3px solid #333;}
+.rrow.ok{border-left-color:#44cc66;}
+.rrow.bad{border-left-color:#cc4444;}
+.rrow .ri{font-size:16px;flex-shrink:0;margin-top:1px;}
+.rrow .rd{color:#a0a0c0;line-height:1.6;}
+.rrow .rd b{color:#d8d0f0;font-weight:normal;}
+#big-score{font-size:38px;color:#c8a96e;margin:0.5rem 0 0.2rem;}
+#grade-line{color:#8877bb;font-size:13px;margin-bottom:1.25rem;}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="game-wrap">
+  <canvas id="scene" width="680" height="340"></canvas>
+  <div id="hud">
+    <div id="hearts"></div>
+    <div id="room-info"></div>
+    <div id="score-disp"></div>
+  </div>
+  <button id="scroll-btn" onclick="toggleScroll()">&#128221; Study Scroll</button>
+  <div id="scroll-overlay">
+    <div id="scroll-inner">
+      <button id="scroll-close" onclick="toggleScroll()">&#10005;</button>
+      <h2>&#10024; The Study Scroll</h2>
+      <h3>Goals, Outcomes & Objectives</h3>
+      <p>When planning an English lesson, teachers begin with a <b>goal</b> — the broad purpose of learning. From this, they develop <b>learning outcomes</b>: what students should be able to do by the end of a unit or course (e.g. <i>Students will be able to ask for and give directions</i>). From outcomes, teachers create specific <b>learning objectives</b> for individual lessons (e.g. <i>Students will use imperatives and prepositions of place to give directions</i>).</p>
+      <h3>Scaffolding</h3>
+      <p>Once teachers have the objective, they identify the support students need — called <b>scaffolding</b>. Scaffolding is temporary assistance (from a teacher, peer, or resource) that helps learners perform tasks they could not complete independently. Examples: visual aids, graphic organizers, model texts, sentence starters, guided questions, demonstrations. As students gain competence, scaffolds are <b>gradually removed</b> so learners perform independently.</p>
+      <h3>Materials & Constructive Alignment</h3>
+      <p>Materials are selected because they help learners move toward the intended outcome — not simply because they are engaging. For a lesson on giving directions: maps, model conversations, role-play cards, visual vocabulary guides. This reflects <b>constructive alignment</b>: goals, outcomes, objectives, scaffolding, materials, and assessment all working together.</p>
+    </div>
+  </div>
+  <div id="question-area">
+    <div id="q-header">ENCOUNTER</div>
+    <div id="q-text"></div>
+    <div id="opts"></div>
+    <div id="feedback"></div>
+  </div>
+  <div id="start-screen">
+    <div style="font-size:48px;margin-bottom:1rem;">&#9876;</div>
+    <div class="gs-title">Depths of Doom</div>
+    <div style="color:#6655aa;font-size:13px;letter-spacing:2px;margin-bottom:1rem;">THE SCAFFOLD DUNGEON</div>
+    <div class="gs-sub">You stand at the entrance of an ancient dungeon.<br>Answer the questions to defeat the magical enemies<br>and open each stone door. Reach the Final Boss to escape.</div>
+    <div style="margin-bottom:1.25rem;"><span style="color:#ff6666;font-size:22px;">&#9829;&#9829;&#9829;</span><span style="color:#7766aa;font-size:12px;margin-left:8px;"> 3 lives &nbsp;|&nbsp; 10 questions + Final Boss</span></div>
+    <div style="color:#7766aa;font-size:12px;margin-bottom:1.5rem;">Use the <span style="color:#ccaaff;">&#128221; Study Scroll</span> button at any time to read the text.</div>
+    <button class="gs-btn" onclick="startGame()">Enter the Dungeon</button>
+  </div>
+  <div id="gameover-screen">
+    <div style="font-size:52px;margin-bottom:1rem;">&#128128;</div>
+    <div class="gs-title">You Have Fallen</div>
+    <div class="gs-sub">The dungeon claimed another soul...<br>Study the scroll and try again.</div>
+    <div id="go-score" style="color:#f0d060;font-size:20px;margin-bottom:1.5rem;"></div>
+    <button class="gs-btn" onclick="startGame()">Rise Again</button>
+  </div>
+  <div id="results-screen">
+    <div id="res-icon" style="font-size:48px;margin-bottom:0.5rem;"></div>
+    <div class="gs-title" id="res-title"></div>
+    <div id="big-score"></div>
+    <div id="grade-line"></div>
+    <div id="results-list"></div>
+    <button class="gs-btn" style="margin-top:1rem;" onclick="startGame()">Play Again</button>
+  </div>
+</div>
+</div>
+
+<script>
+const QS = [
+  {q:"What is the primary purpose of a learning goal?",opts:["To describe a classroom activity","To identify a broad learning purpose","To list lesson materials","To assess students"],ans:1,enemy:"orb",color:"#6644ff"},
+  {q:"What does a learning outcome describe?",opts:["What teachers will teach","What materials students will use","What students should be able to do by end of a unit","What students already know"],ans:2,enemy:"rune",color:"#44aaff"},
+  {q:"Which statement is a learning objective?",opts:["Students will become confident communicators.","Students will improve their English level.","Students will use prepositions of place to give directions.","Students will reach a B1 level."],ans:2,enemy:"skull",color:"#aa44ff"},
+  {q:"According to the text, what is scaffolding?",opts:["A type of assessment","Temporary support that helps learners complete a task","A classroom management technique","A learning outcome"],ans:1,enemy:"orb",color:"#ff6644"},
+  {q:"Which of the following is NOT mentioned as a scaffold?",opts:["Graphic organizers","Model texts","Sentence starters","Final exams"],ans:3,enemy:"trap",color:"#44ffaa"},
+  {q:"What should happen to scaffolds as students become more competent?",opts:["They should increase.","They should remain unchanged.","They should gradually be removed.","They should become more difficult."],ans:2,enemy:"rune",color:"#ffaa44"},
+  {q:"How should teachers select materials?",opts:["Based on popularity","Based on cost","Based on alignment with objectives and outcomes","Based on students' favourite topics only"],ans:2,enemy:"skull",color:"#ff44aa"},
+  {q:"Which material best supports a lesson on giving directions?",opts:["A scientific article","A map and role-play cards","A listening test","A spelling quiz"],ans:1,enemy:"orb",color:"#44ffff"},
+  {q:"What educational principle is mentioned in the final paragraph?",opts:["Cooperative Learning","Gamification","Constructive Alignment","Differentiated Instruction"],ans:2,enemy:"trap",color:"#aaff44"},
+  {q:"What is the main message of the text?",opts:["Materials are the most important part of lesson planning.","Technology should be used in every lesson.","Effective teaching requires alignment: goals, outcomes, objectives, scaffolds, materials.","Assessment should come before objectives."],ans:2,enemy:"rune",color:"#ff44ff"},
+  {q:"FINAL BOSS: A teacher wants students to compare two Colombian cities using comparative adjectives in a short oral presentation. Which scaffold is MOST effective?",opts:["A vocabulary bank, comparison chart, and model presentation.","A final speaking assessment without preparation.","A grammar test about present perfect.","A reading text about environmental issues."],ans:0,enemy:"boss",color:"#ff2222"}
+];
+const LABS=["A","B","C","D"];
+const ROOMS=["The Entry Gate","Hall of Goals","Chamber of Outcomes","Objective Alcove","Scaffold Vault","The Support Forge","Materials Keep","Alignment Hall","Directions Room","Principle Tower","The Final Boss"];
+
+const cvs=document.getElementById('scene');
+const ctx=cvs.getContext('2d');
+const W=680,H=340;
+
+let hp,score,room,answered,history;
+let phase='idle'; // idle, correct-anim, wrong-anim
+let animT=0,animMax=60;
+let enemyBob=0,torchFlicker=0;
+let rafId;
+
+function startGame(){
+  hp=3;score=0;room=0;answered=false;history=[];phase='idle';
+  ['start-screen','gameover-screen','results-screen'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('scroll-overlay').classList.remove('open');
+  loadRoom();
+  if(rafId) cancelAnimationFrame(rafId);
+  loop();
+}
+
+function loadRoom(){
+  answered=false;
+  const q=QS[room];
+  document.getElementById('q-header').textContent=room===10?'⚔ FINAL BOSS ENCOUNTER':'✦ MAGICAL ENCOUNTER — ROOM '+(room+1)+' OF 11';
+  document.getElementById('q-text').textContent=q.q;
+  const od=document.getElementById('opts');
+  od.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='opt';b.textContent=LABS[i]+'. '+o;
+    b.onclick=()=>pick(i,b);
+    od.appendChild(b);
+  });
+  document.getElementById('feedback').textContent='';
+  updateHUD();
+}
+
+function updateHUD(){
+  document.getElementById('hearts').innerHTML='&#9829;'.repeat(hp)+'<span style="color:#333">&#9829;</span>'.repeat(3-hp);
+  document.getElementById('room-info').textContent=ROOMS[room]||'';
+  document.getElementById('score-disp').textContent='Score: '+score;
+}
+
+function pick(idx,btn){
+  if(answered||phase!=='idle') return;
+  answered=true;
+  const q=QS[room];
+  const ok=idx===q.ans;
+  document.querySelectorAll('.opt').forEach(b=>b.disabled=true);
+  document.querySelectorAll('.opt')[q.ans].classList.add('correct');
+  if(!ok){btn.classList.add('wrong');hp--;document.getElementById('feedback').textContent='Wrong! -1 life. Correct answer: '+LABS[q.ans];}
+  else{score+=10;document.getElementById('feedback').textContent=room===10?'The Boss is defeated! +10 pts':'The enemy falls! Door opening... +10 pts';}
+  history.push({q:q.q,opts:q.opts,ans:q.ans,chosen:idx,ok});
+  updateHUD();
+  phase=ok?'correct-anim':'wrong-anim';
+  animT=0;
+  setTimeout(()=>{
+    phase='idle';
+    if(!ok&&hp<=0){gameOver();return;}
+    room++;
+    if(room>=QS.length){showResults();return;}
+    loadRoom();
+  },ok?1600:1200);
+}
+
+function gameOver(){
+  phase='idle';
+  document.getElementById('go-score').textContent='Final Score: '+score+' / '+(history.length*10);
+  document.getElementById('gameover-screen').style.display='block';
+}
+
+function showResults(){
+  phase='idle';
+  document.getElementById('results-screen').style.display='block';
+  const tot=history.length,cor=history.filter(h=>h.ok).length,pct=Math.round(cor/tot*100);
+  let icon,title,grade;
+  if(pct===100){icon='&#127942;';title='Dungeon Cleared!';grade='Flawless victory! You are a true scholar.';}
+  else if(pct>=80){icon='&#127881;';title='Run Complete';grade='Excellent work! A worthy adventurer.';}
+  else if(pct>=60){icon='&#128218;';title='Run Complete';grade='Good effort! Review the scroll and go again.';}
+  else{icon='&#128196;';title='Run Complete';grade='Keep studying — you will conquer it!';}
+  document.getElementById('res-icon').innerHTML=icon;
+  document.getElementById('res-title').textContent=title;
+  document.getElementById('big-score').textContent=score+' pts';
+  document.getElementById('grade-line').textContent=grade+' ('+cor+'/'+tot+' correct)';
+  const list=document.getElementById('results-list');
+  list.innerHTML='<p style="color:#7766aa;font-size:11px;letter-spacing:1px;margin-bottom:8px;">ANSWER REVIEW</p>';
+  history.forEach((h,i)=>{
+    const d=document.createElement('div');
+    d.className='rrow '+(h.ok?'ok':'bad');
+    const qs=h.q.length>72?h.q.slice(0,72)+'…':h.q;
+    d.innerHTML=`<span class="ri">${h.ok?'✅':'❌'}</span><div class="rd"><b>Q${i+1}: ${qs}</b><br>Your answer: ${LABS[h.chosen]}. ${h.opts[h.chosen]}${!h.ok?'<br><span style="color:#66ee88">Correct: '+LABS[h.ans]+'. '+h.opts[h.ans]+'</span>':''}</div>`;
+    list.appendChild(d);
+  });
+}
+
+function toggleScroll(){document.getElementById('scroll-overlay').classList.toggle('open');}
+
+function loop(){
+  rafId=requestAnimationFrame(loop);
+  enemyBob+=0.04;torchFlicker+=0.07;
+  if(phase==='correct-anim'||phase==='wrong-anim') animT++;
+  draw();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  if(document.getElementById('start-screen').style.display==='block') return;
+  if(document.getElementById('gameover-screen').style.display==='block'){drawGameOver();return;}
+  if(document.getElementById('results-screen').style.display==='block') return;
+
+  drawCorridor();
+  drawTorches();
+  drawDoor();
+  drawEnemy();
+  if(phase==='wrong-anim') drawHitFlash();
+}
+
+function drawCorridor(){
+  const cx=W/2,cy=H/2;
+  const vp=80,vs=60;
+
+  // Floor
+  const fg=ctx.createLinearGradient(0,cy,0,H);
+  fg.addColorStop(0,'#1a1208');fg.addColorStop(1,'#0a0806');
+  ctx.fillStyle=fg;ctx.fillRect(0,cy,W,H-cy);
+
+  // Ceiling
+  const cg=ctx.createLinearGradient(0,0,0,cy);
+  cg.addColorStop(0,'#060408');cg.addColorStop(1,'#110d18');
+  ctx.fillStyle=cg;ctx.fillRect(0,0,W,cy);
+
+  // Left wall
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(vp,vs);ctx.lineTo(vp,H-vs);ctx.lineTo(0,H);ctx.closePath();
+  const lwg=ctx.createLinearGradient(0,0,vp,0);
+  lwg.addColorStop(0,'#1a1428');lwg.addColorStop(1,'#2a2040');
+  ctx.fillStyle=lwg;ctx.fill();
+  ctx.strokeStyle='#3a2a5a';ctx.lineWidth=1;ctx.stroke();
+
+  // Right wall
+  ctx.beginPath();ctx.moveTo(W,0);ctx.lineTo(W-vp,vs);ctx.lineTo(W-vp,H-vs);ctx.lineTo(W,H);ctx.closePath();
+  const rwg=ctx.createLinearGradient(W-vp,0,W,0);
+  rwg.addColorStop(0,'#2a2040');rwg.addColorStop(1,'#1a1428');
+  ctx.fillStyle=rwg;ctx.fill();
+  ctx.strokeStyle='#3a2a5a';ctx.lineWidth=1;ctx.stroke();
+
+  // Back wall
+  ctx.fillStyle='#181028';ctx.fillRect(vp,vs,W-vp*2,H-vs*2);
+  ctx.strokeStyle='#3a2a5a';ctx.lineWidth=1.5;ctx.strokeRect(vp,vs,W-vp*2,H-vs*2);
+
+  // Stone lines floor
+  ctx.strokeStyle='#1a140a';ctx.lineWidth=0.8;
+  for(let i=0;i<5;i++){
+    const t=i/4;
+    const y=cy+t*(H-cy);
+    const lx=vp*(1-t),rx=W-vp*(1-t);
+    ctx.beginPath();ctx.moveTo(lx,y);ctx.lineTo(rx,y);ctx.stroke();
+  }
+  // Perspective lines
+  ctx.strokeStyle='#1a140a';
+  [[0,0,vp,vs],[W,0,W-vp,vs],[0,H,vp,H-vs],[W,H,W-vp,H-vs]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+  });
+
+  // Stone blocks on walls
+  drawStoneBlocks(vp,vs);
+}
+
+function drawStoneBlocks(vp,vs){
+  ctx.strokeStyle='rgba(60,40,90,0.4)';ctx.lineWidth=0.6;
+  // Left wall blocks
+  for(let r=0;r<4;r++){
+    for(let c=0;c<2;c++){
+      const x=c*(vp/2);const y=r*(H/4);
+      ctx.strokeRect(x+2,y+4,vp/2-4,H/4-8);
+    }
+  }
+  // Right wall blocks
+  for(let r=0;r<4;r++){
+    for(let c=0;c<2;c++){
+      const x=W-vp+c*(vp/2);const y=r*(H/4);
+      ctx.strokeRect(x+2,y+4,vp/2-4,H/4-8);
+    }
+  }
+}
+
+function drawTorches(){
+  const tf=Math.sin(torchFlicker)*0.3+0.7;
+  [[90,85],[W-90,85]].forEach(([tx,ty])=>{
+    // bracket
+    ctx.fillStyle='#4a3828';ctx.fillRect(tx-3,ty,6,16);
+    // flame glow
+    ctx.save();ctx.globalAlpha=0.25*tf;
+    const rg=ctx.createRadialGradient(tx,ty,2,tx,ty,40);
+    rg.addColorStop(0,'#ffaa44');rg.addColorStop(1,'transparent');
+    ctx.fillStyle=rg;ctx.beginPath();ctx.arc(tx,ty,40,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    // flame
+    ctx.save();ctx.globalAlpha=tf;
+    const fg=ctx.createRadialGradient(tx,ty-4,1,tx,ty,12);
+    fg.addColorStop(0,'#fff4aa');fg.addColorStop(0.4,'#ff8822');fg.addColorStop(1,'transparent');
+    ctx.fillStyle=fg;ctx.beginPath();ctx.arc(tx,ty-4,12,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    // cast light on walls
+    ctx.save();ctx.globalAlpha=0.06*tf;
+    ctx.fillStyle='#ffaa44';
+    if(tx<W/2){ctx.fillRect(0,0,vp+10,H);}else{ctx.fillRect(W-vp-10,0,vp+10,H);}
+    ctx.restore();
+  });
+}
+const vp=80; // reuse for wall light
+
+function drawDoor(){
+  const cx=W/2,dy=60,dh=H-120,dw=110;
+  const dl=cx-dw/2,dr=cx+dw/2;
+
+  if(phase==='correct-anim'){
+    const prog=Math.min(animT/animMax,1);
+    const ease=1-Math.pow(1-prog,3);
+    // Left panel swings open
+    ctx.save();ctx.translate(dl,dy);
+    ctx.transform(1-ease*0.8,0,0,1,0,0);
+    drawDoorPanel(-dw/2,0,dw/2,dh,'left');
+    ctx.restore();
+    // Right panel
+    ctx.save();ctx.translate(dr,dy);
+    ctx.transform(1-ease*0.8,0,0,1,(ease*0.8)*dw,0);
+    drawDoorPanel(0,0,dw/2,dh,'right');
+    ctx.restore();
+    // Reveal glow behind
+    ctx.save();ctx.globalAlpha=ease*0.7;
+    const gg=ctx.createRadialGradient(cx,dy+dh/2,5,cx,dy+dh/2,dw/2);
+    gg.addColorStop(0,'#ffffff');gg.addColorStop(0.3,'#c8a0ff');gg.addColorStop(1,'transparent');
+    ctx.fillStyle=gg;ctx.fillRect(dl,dy,dw,dh);
+    ctx.restore();
+  } else {
+    ctx.save();
+    drawDoorPanel(dl,dy,dw/2,dh,'left');
+    ctx.translate(dw,0);
+    drawDoorPanel(dl-dw/2,dy,dw/2,dh,'right');
+    ctx.restore();
+  }
+}
+
+function drawDoorPanel(x,y,w,h,side){
+  const g=ctx.createLinearGradient(x,0,x+w,0);
+  if(side==='left'){g.addColorStop(0,'#1e1630');g.addColorStop(1,'#2e2448');}
+  else{g.addColorStop(0,'#2e2448');g.addColorStop(1,'#1e1630');}
+  ctx.fillStyle=g;ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='#4a3870';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+  // rivets
+  ctx.fillStyle='#5a4880';
+  [[x+8,y+12],[x+w-8,y+12],[x+8,y+h-12],[x+w-8,y+h-12]].forEach(([rx,ry])=>{
+    ctx.beginPath();ctx.arc(rx,ry,3,0,Math.PI*2);ctx.fill();
+  });
+  // wood grain lines
+  ctx.strokeStyle='rgba(90,70,130,0.3)';ctx.lineWidth=0.7;
+  for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(x,y+h*i/4);ctx.lineTo(x+w,y+h*i/4);ctx.stroke();}
+  // handle
+  if(side==='right'){
+    ctx.fillStyle='#c8a060';ctx.beginPath();ctx.arc(x+6,y+h/2,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#a07040';ctx.lineWidth=1.5;ctx.stroke();
+  }
+}
+
+function drawEnemy(){
+  if(phase==='correct-anim'&&animT>animMax*0.4) return;
+  const q=QS[room];if(!q) return;
+  const cx=W/2,cy=H/2-10;
+  const bob=Math.sin(enemyBob)*6;
+  const alive=phase!=='correct-anim';
+  const dying=phase==='correct-anim';
+  const alpha=dying?Math.max(0,1-animT/(animMax*0.4)):1;
+
+  ctx.save();ctx.globalAlpha=alpha;
+
+  if(q.enemy==='boss'){
+    drawBoss(cx,cy+bob);
+  } else if(q.enemy==='skull'){
+    drawSkull(cx,cy+bob,q.color);
+  } else if(q.enemy==='rune'){
+    drawRune(cx,cy+bob,q.color);
+  } else if(q.enemy==='trap'){
+    drawTrap(cx,cy,q.color);
+  } else {
+    drawOrb(cx,cy+bob,q.color);
+  }
+
+  // enemy glow on floor
+  ctx.save();ctx.globalAlpha=0.12;
+  const sg=ctx.createRadialGradient(cx,cy+60,2,cx,cy+60,50);
+  sg.addColorStop(0,q.enemy==='boss'?'#ff2222':q.color);sg.addColorStop(1,'transparent');
+  ctx.fillStyle=sg;ctx.beginPath();ctx.ellipse(cx,cy+60,50,15,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function drawOrb(cx,cy,col){
+  ctx.save();
+  const rg=ctx.createRadialGradient(cx-8,cy-8,4,cx,cy,36);
+  rg.addColorStop(0,'#ffffff');rg.addColorStop(0.3,col);rg.addColorStop(1,'transparent');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.arc(cx,cy,36,0,Math.PI*2);ctx.fill();
+  // core
+  const cg=ctx.createRadialGradient(cx-6,cy-6,2,cx,cy,18);
+  cg.addColorStop(0,'#ffffff');cg.addColorStop(0.5,col);cg.addColorStop(1,'#000020');
+  ctx.fillStyle=cg;ctx.beginPath();ctx.arc(cx,cy,18,0,Math.PI*2);ctx.fill();
+  // sparkles
+  for(let i=0;i<6;i++){
+    const a=enemyBob+i*Math.PI/3,r=28+Math.sin(enemyBob*2+i)*4;
+    const sx=cx+Math.cos(a)*r,sy=cy+Math.sin(a)*r;
+    ctx.fillStyle=col;ctx.globalAlpha=0.7;ctx.beginPath();ctx.arc(sx,sy,2,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSkull(cx,cy,col){
+  ctx.save();
+  // glow
+  const rg=ctx.createRadialGradient(cx,cy,5,cx,cy,50);
+  rg.addColorStop(0,col+'88');rg.addColorStop(1,'transparent');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.arc(cx,cy,50,0,Math.PI*2);ctx.fill();
+  // skull
+  ctx.fillStyle='#e0d8f0';ctx.beginPath();ctx.arc(cx,cy-4,24,0,Math.PI*2);ctx.fill();
+  ctx.fillRect(cx-14,cy+16,28,14);
+  // eyes
+  ctx.fillStyle='#000';
+  ctx.beginPath();ctx.ellipse(cx-9,cy-4,7,9,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+9,cy-4,7,9,0,0,Math.PI*2);ctx.fill();
+  // eye glow
+  ctx.fillStyle=col;ctx.globalAlpha=0.7;
+  ctx.beginPath();ctx.ellipse(cx-9,cy-4,4,5,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+9,cy-4,4,5,0,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+  // nose
+  ctx.fillStyle='#000';ctx.beginPath();ctx.moveTo(cx,cy+6);ctx.lineTo(cx-4,cy+14);ctx.lineTo(cx+4,cy+14);ctx.fill();
+  // teeth
+  ctx.fillStyle='#e0d8f0';
+  for(let i=0;i<4;i++) ctx.fillRect(cx-12+i*7,cy+17,5,8);
+  ctx.restore();
+}
+
+function drawRune(cx,cy,col){
+  ctx.save();
+  for(let r=1;r<=3;r++){
+    ctx.strokeStyle=col;ctx.globalAlpha=0.15/r*2;ctx.lineWidth=r*4;
+    ctx.beginPath();ctx.arc(cx,cy,r*16,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  // rotating rune ring
+  const pts=6;
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(enemyBob*0.5);
+  ctx.strokeStyle=col;ctx.lineWidth=2;ctx.globalAlpha=0.8;
+  ctx.beginPath();
+  for(let i=0;i<pts;i++){
+    const a=i/pts*Math.PI*2,r=30;
+    i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);
+  }
+  ctx.closePath();ctx.stroke();
+  ctx.restore();
+  // inner symbol
+  ctx.fillStyle=col;ctx.globalAlpha=0.9;ctx.font='bold 28px Georgia';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('✦',cx,cy);
+  ctx.restore();
+}
+
+function drawTrap(cx,cy,col){
+  ctx.save();
+  // base plate
+  const pg=ctx.createRadialGradient(cx,cy,4,cx,cy,38);
+  pg.addColorStop(0,'#333');pg.addColorStop(1,'#111');
+  ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(cx,cy+10,38,14,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  // spikes
+  for(let i=0;i<8;i++){
+    const a=i/8*Math.PI*2,pulse=Math.sin(enemyBob*2+i)*4;
+    const r=24+pulse;
+    ctx.fillStyle=col;ctx.save();ctx.translate(cx,cy+10);ctx.rotate(a);
+    ctx.beginPath();ctx.moveTo(0,-8);ctx.lineTo(5,r);ctx.lineTo(-5,r);ctx.closePath();ctx.fill();
+    ctx.restore();
+  }
+  // glow
+  ctx.globalAlpha=0.4;const rg=ctx.createRadialGradient(cx,cy,2,cx,cy,30);
+  rg.addColorStop(0,col);rg.addColorStop(1,'transparent');
+  ctx.fillStyle=rg;ctx.beginPath();ctx.arc(cx,cy,30,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function drawBoss(cx,cy){
+  ctx.save();
+  // massive glow
+  for(let r=1;r<=4;r++){
+    ctx.strokeStyle='#ff2222';ctx.globalAlpha=0.08*r;ctx.lineWidth=r*8;
+    ctx.beginPath();ctx.arc(cx,cy,r*22,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+  // body
+  ctx.fillStyle='#330000';ctx.beginPath();ctx.ellipse(cx,cy+5,32,38,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#cc2222';ctx.lineWidth=2;ctx.stroke();
+  // horns
+  ctx.fillStyle='#551111';
+  ctx.beginPath();ctx.moveTo(cx-16,cy-28);ctx.lineTo(cx-28,cy-58);ctx.lineTo(cx-4,cy-30);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(cx+16,cy-28);ctx.lineTo(cx+28,cy-58);ctx.lineTo(cx+4,cy-30);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#cc2222';ctx.lineWidth=1.5;ctx.stroke();
+  // face
+  ctx.fillStyle='#220000';ctx.beginPath();ctx.arc(cx,cy-10,22,0,Math.PI*2);ctx.fill();
+  // eyes
+  ctx.fillStyle='#ff2222';
+  ctx.beginPath();ctx.ellipse(cx-9,cy-12,6,8,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+9,cy-12,6,8,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ffff00';ctx.globalAlpha=0.7;
+  ctx.beginPath();ctx.ellipse(cx-9,cy-12,3,4,0,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(cx+9,cy-12,3,4,0,0,Math.PI*2);ctx.fill();
+  ctx.globalAlpha=1;
+  // mouth
+  ctx.strokeStyle='#ff4444';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(cx,cy-2,10,0.2,Math.PI-0.2);ctx.stroke();
+  // teeth
+  ctx.fillStyle='#ffeecc';
+  for(let i=0;i<4;i++) ctx.fillRect(cx-10+i*6,cy-3,4,7);
+  // energy wisps
+  for(let i=0;i<5;i++){
+    const a=enemyBob+i*Math.PI*0.4,r=40+Math.sin(enemyBob+i)*8;
+    const wx=cx+Math.cos(a)*r,wy=cy+Math.sin(a)*r;
+    ctx.fillStyle='#ff2222';ctx.globalAlpha=0.5;
+    ctx.beginPath();ctx.arc(wx,wy,4,0,Math.PI*2);ctx.fill();
+  }
+  // boss label
+  ctx.globalAlpha=1;ctx.fillStyle='#ff6666';ctx.font='bold 11px Georgia';ctx.textAlign='center';
+  ctx.fillText('⚔ FINAL BOSS',cx,cy+52);
+  ctx.restore();
+}
+
+function drawGameOver(){
+  ctx.fillStyle='#0a0510';ctx.fillRect(0,0,W,H);
+}
+
+function drawHitFlash(){
+  const alpha=Math.max(0,0.35-animT*0.015);
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.fillStyle='#ff2200';ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
+window.startGame=startGame;
+window.toggleScroll=toggleScroll;
+
+// Show start screen on load
+document.getElementById('start-screen').style.display='block';
+rafId=requestAnimationFrame(loop);
+loop();
+</script>
+</body></html>
