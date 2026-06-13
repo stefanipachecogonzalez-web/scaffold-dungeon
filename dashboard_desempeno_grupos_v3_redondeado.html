@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard de Desempeño Académico</title>
+<style>
+:root {
+  --blue:#123b63; --blue2:#1f4e79; --line:#d9e2ec; --text:#1f2933;
+  --green:#0f766e; --green2:#d1fae5; --red:#b91c1c; --red2:#fee2e2; --amber2:#fef3c7;
+}
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin:0; background:#eef3f7; color:var(--text); }
+.wrap { max-width:1280px; margin:0 auto; padding:28px; }
+.hero { background:linear-gradient(135deg,var(--blue),#2563a8); color:white; border-radius:20px; padding:26px; box-shadow:0 8px 28px rgba(0,0,0,.14); }
+h1 { margin:0 0 8px; font-size:30px; }
+h2 { margin:0 0 14px; color:var(--blue); }
+.hero p { margin:0; opacity:.92; }
+.tabs { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
+.tabbtn { border:0; border-radius:999px; padding:10px 16px; background:#dbeafe; color:#123b63; font-weight:700; cursor:pointer; }
+.tabbtn.active { background:white; color:#123b63; }
+.card { background:white; border-radius:16px; padding:18px; box-shadow:0 4px 16px rgba(0,0,0,.08); margin:18px 0; }
+.kpis { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:16px; margin:18px 0; }
+.kpi { background:white; border-left:6px solid var(--blue2); border-radius:14px; padding:16px; box-shadow:0 3px 12px rgba(0,0,0,.07); }
+.kpi .num { font-size:28px; font-weight:800; color:var(--blue); margin-top:4px; }
+.kpi .label { color:#64748b; font-size:13px; font-weight:700; }
+.controls { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0; }
+label { display:block; font-weight:700; margin-bottom:8px; color:var(--blue); }
+select, input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+table { width:100%; border-collapse:collapse; background:white; border-radius:14px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.08); margin:12px 0 0; }
+th { background:var(--blue2); color:white; text-align:left; padding:12px; font-size:13px; position:sticky; top:0; }
+td { padding:11px 12px; border-bottom:1px solid var(--line); font-size:14px; }
+tr:hover td { background:#f0f7ff; }
+.pill { display:inline-block; padding:4px 9px; border-radius:999px; font-weight:700; font-size:12px; }
+.good { background:var(--green2); color:#065f46; }
+.mid { background:var(--amber2); color:#92400e; }
+.low { background:var(--red2); color:#991b1b; }
+.bars { display:grid; gap:13px; margin-top:10px; }
+.barrow { display:grid; grid-template-columns:310px 1fr 70px; align-items:center; gap:10px; }
+.barbox { height:26px; background:#e5edf5; border-radius:999px; overflow:hidden; display:flex; }
+.bar { height:100%; border-radius:999px; }
+.avgbar { background:linear-gradient(90deg,#60a5fa,#1f4e79); }
+.stackPass { background:#0f766e; height:100%; }
+.stackFail { background:#dc2626; height:100%; }
+.note { color:#52606d; font-size:13px; margin:8px 0 0; }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.hidden { display:none; }
+.legend { display:flex; gap:16px; font-size:13px; margin:0 0 14px; flex-wrap:wrap; }
+.dot { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:middle; }
+.tableWrap { overflow:auto; max-height:580px; }
+@media (max-width:900px) { .controls,.two,.kpis { grid-template-columns:1fr; } .barrow { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Dashboard interactivo de desempeño académico</h1>
+    <p>Corrección aplicada: el estado aprobado/perdido se calcula con la nota oficial redondeada a un decimal. Una nota raw de 2.95 o superior cuenta como 3.0.</p>
+    <div class="tabs">
+      <button class="tabbtn active" onclick="showTab(event,'overview')">Resumen</button>
+      <button class="tabbtn" onclick="showTab(event,'components')">Promedios por examen</button>
+      <button class="tabbtn" onclick="showTab(event,'passfail')">Aprobados vs. perdidos</button>
+      <button class="tabbtn" onclick="showTab(event,'students')">Detalle estudiantes</button>
+    </div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section id="overview" class="tab">
+    <div class="card">
+      <h2>Resumen general por grupo</h2>
+      <div class="tableWrap">
+        <table id="summaryTable">
+          <thead><tr><th>Grupo</th><th>Estudiantes</th><th>Promedio final oficial</th><th>Aprobados</th><th>Perdidos</th><th>% aprobación</th><th>Componente más alto</th><th>Componente más bajo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note">Criterio de aprobación: nota final redondeada a un decimal igual o superior a 3.0.</p>
+    </div>
+  </section>
+
+  <section id="components" class="tab hidden">
+    <section class="controls">
+      <div class="card"><label for="groupFilter">Ver componentes de un grupo</label><select id="groupFilter"></select></div>
+      <div class="card"><label for="componentFilter">Comparar componente equivalente</label><select id="componentFilter"></select><p class="note">Ejemplo: ITEP compara los cursos que tuvieron ese mismo tipo de examen.</p></div>
+    </section>
+    <section class="two">
+      <div class="card"><h2 id="groupTitle">Promedios por componente</h2><div id="groupBars" class="bars"></div></div>
+      <div class="card"><h2 id="componentTitle">Comparación por componente</h2><div id="componentBars" class="bars"></div></div>
+    </section>
+    <div class="card"><h2>Tabla completa de promedios por componente</h2><div class="tableWrap"><table id="detailTable"><thead><tr><th>Grupo</th><th>Componente</th><th>Peso</th><th>Promedio</th><th>Lectura</th></tr></thead><tbody></tbody></table></div></div>
+  </section>
+
+  <section id="passfail" class="tab hidden">
+    <div class="card">
+      <h2>Aprobados vs. perdidos por grupo</h2>
+      <div class="legend"><span><span class="dot" style="background:#0f766e"></span>Aprobados</span><span><span class="dot" style="background:#dc2626"></span>Perdidos</span></div>
+      <div id="passFailBars" class="bars"></div>
+    </div>
+    <div class="card"><h2>Tabla de aprobación</h2><div class="tableWrap"><table id="passFailTable"><thead><tr><th>Grupo</th><th>Total</th><th>Aprobados</th><th>Perdidos</th><th>% aprobación</th><th>% pérdida</th></tr></thead><tbody></tbody></table></div></div>
+  </section>
+
+  <section id="students" class="tab hidden">
+    <section class="controls">
+      <div class="card"><label for="studentGroupFilter">Filtrar por grupo</label><select id="studentGroupFilter"></select></div>
+      <div class="card"><label for="searchBox">Buscar estudiante</label><input id="searchBox" placeholder="Escribe nombre o código..." /></div>
+    </section>
+    <div class="card"><h2>Detalle de estudiantes</h2><div class="tableWrap"><table id="studentTable"><thead><tr><th>Grupo</th><th>Código</th><th>Nombre</th><th>Nota raw</th><th>Nota oficial</th><th>Estado</th></tr></thead><tbody></tbody></table></div></div>
+  </section>
+</div>
+
+<script>
+const DATA = {"courses": [{"group": "EHS 5 – NRC 3856", "students": 16, "componentAverages": {"Job Interview & Cover Letter": 3.4, "Health Campaign 1": 3.9, "CLA 1": 3.79, "Health Campaign 2": 4.18, "Health Campaign 3": 4.03, "ITEP": 3.09}, "weights": {"Job Interview & Cover Letter": 15, "Health Campaign 1": 15, "CLA 1": 10, "Health Campaign 2": 15, "Health Campaign 3": 15, "ITEP": 30}, "finalAverageRaw": 3.63, "finalAverage": 3.63, "passed": 13, "failed": 3, "passRate": 81.2, "failRate": 18.8, "highestComponent": "Health Campaign 2 (4.18)", "lowestComponent": "ITEP (3.09)", "studentsData": [{"id": "1", "name": "AMARIS DIAVANERA, ISABELLA M.", "components": {"Job Interview & Cover Letter": 4.2, "Health Campaign 1": 4.8, "CLA 1": 4.8, "Health Campaign 2": 5.0, "Health Campaign 3": 5.0, "ITEP": 5.0}, "final": 4.83, "officialFinal": 4.8, "status": "Aprobó"}, {"id": "2", "name": "ANGULO ROA, NATALIA I.", "components": {"Job Interview & Cover Letter": 2.5, "Health Campaign 1": 5.0, "CLA 1": 4.3, "Health Campaign 2": 4.6, "Health Campaign 3": 3.5, "ITEP": 4.5}, "final": 4.12, "officialFinal": 4.1, "status": "Aprobó"}, {"id": "3", "name": "BRICEÑO PACHECO, KATHERIN J.", "components": {"Job Interview & Cover Letter": 3.8, "Health Campaign 1": 3.8, "CLA 1": 3.7, "Health Campaign 2": 3.7, "Health Campaign 3": 3.5, "ITEP": 1.0}, "final": 2.89, "officialFinal": 2.9, "status": "Perdió"}, {"id": "4", "name": "CELEDON MANGA, EMMANUEL D.", "components": {"Job Interview & Cover Letter": 4.7, "Health Campaign 1": 4.6, "CLA 1": 4.0, "Health Campaign 2": 4.1, "Health Campaign 3": 5.0, "ITEP": 4.5}, "final": 4.51, "officialFinal": 4.5, "status": "Aprobó"}, {"id": "5", "name": "CLAROS PIÑA, LUZ A.", "components": {"Job Interview & Cover Letter": 3.5, "Health Campaign 1": 3.8, "CLA 1": 2.2, "Health Campaign 2": 4.3, "Health Campaign 3": 5.0, "ITEP": 1.0}, "final": 3.01, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "6", "name": "DE LA CRUZ JABIB, SAMUEL D.", "components": {"Job Interview & Cover Letter": 3.4, "Health Campaign 1": 0.0, "CLA 1": 3.9, "Health Campaign 2": 3.5, "Health Campaign 3": 3.5, "ITEP": 4.5}, "final": 3.3, "officialFinal": 3.3, "status": "Aprobó"}, {"id": "7", "name": "GONZALEZ CASTAÑO, KAROL A.", "components": {"Job Interview & Cover Letter": 3.6, "Health Campaign 1": 3.8, "CLA 1": 3.6, "Health Campaign 2": 4.5, "Health Campaign 3": 5.0, "ITEP": 4.0}, "final": 4.095, "officialFinal": 4.1, "status": "Aprobó"}, {"id": "8", "name": "HERNANDEZ GONZALEZ, SARA S.", "components": {"Job Interview & Cover Letter": 3.0, "Health Campaign 1": 3.8, "CLA 1": 3.7, "Health Campaign 2": 4.0, "Health Campaign 3": 3.5, "ITEP": 1.0}, "final": 2.815, "officialFinal": 2.8, "status": "Perdió"}, {"id": "9", "name": "HIGUERA MONTOYA, MIGUEL A.", "components": {"Job Interview & Cover Letter": 3.2, "Health Campaign 1": 3.8, "CLA 1": 3.6, "Health Campaign 2": 4.6, "Health Campaign 3": 5.0, "ITEP": 2.5}, "final": 3.6, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "10", "name": "JOHNSON ACEVEDO, LILY S.", "components": {"Job Interview & Cover Letter": 4.6, "Health Campaign 1": 3.8, "CLA 1": 4.2, "Health Campaign 2": 5.0, "Health Campaign 3": 5.0, "ITEP": 4.5}, "final": 4.53, "officialFinal": 4.5, "status": "Aprobó"}, {"id": "11", "name": "MAURY SIERRA, SAMUEL D.", "components": {"Job Interview & Cover Letter": 4.2, "Health Campaign 1": 3.8, "CLA 1": 4.2, "Health Campaign 2": 3.3, "Health Campaign 3": 4.9, "ITEP": 2.5}, "final": 3.6, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "12", "name": "MAYA CANAVATE, JOSE A.", "components": {"Job Interview & Cover Letter": 3.3, "Health Campaign 1": 4.6, "CLA 1": 1.5, "Health Campaign 2": 4.3, "Health Campaign 3": 3.5, "ITEP": 1.0}, "final": 2.805, "officialFinal": 2.8, "status": "Perdió"}, {"id": "13", "name": "MEJIA VILLA, LUISFELIPE", "components": {"Job Interview & Cover Letter": 4.4, "Health Campaign 1": 3.8, "CLA 1": 4.7, "Health Campaign 2": 5.0, "Health Campaign 3": 3.5, "ITEP": 5.0}, "final": 4.475, "officialFinal": 4.5, "status": "Aprobó"}, {"id": "14", "name": "POLO PINEDA, ANDRES C.", "components": {"Job Interview & Cover Letter": 0.0, "Health Campaign 1": 4.2, "CLA 1": 3.7, "Health Campaign 2": 3.0, "Health Campaign 3": 0.0, "ITEP": 5.0}, "final": 2.95, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "15", "name": "RIVERA VELASQUEZ, SEBASTIAN A.", "components": {"Job Interview & Cover Letter": 2.5, "Health Campaign 1": 4.0, "CLA 1": 4.8, "Health Campaign 2": 4.2, "Health Campaign 3": 3.5, "ITEP": 2.5}, "final": 3.36, "officialFinal": 3.4, "status": "Aprobó"}, {"id": "16", "name": "ROYERO SILVA, MARIYULIANA", "components": {"Job Interview & Cover Letter": 3.5, "Health Campaign 1": 4.8, "CLA 1": 3.8, "Health Campaign 2": 3.8, "Health Campaign 3": 5.0, "ITEP": 1.0}, "final": 3.245, "officialFinal": 3.2, "status": "Aprobó"}]}, {"group": "Exigencia Inglés VIII – NRC 3806", "students": 22, "componentAverages": {"Performance Task 1": 3.85, "Project 1": 3.93, "Project 2": 4.38, "ITEP": 3.05, "Performance Task 2": 4.23, "Skills Products": 3.63}, "weights": {"Performance Task 1": 15, "Project 1": 15, "Project 2": 15, "ITEP": 25, "Performance Task 2": 15, "Skills Products": 15}, "finalAverageRaw": 3.76, "finalAverage": 3.76, "passed": 20, "failed": 2, "passRate": 90.9, "failRate": 9.1, "highestComponent": "Project 2 (4.38)", "lowestComponent": "ITEP (3.05)", "studentsData": [{"id": "1", "name": "200070643 - ACOSTA TERAN, LORENA S.", "components": {"Performance Task 1": 4.0, "Project 1": 4.4, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.4, "Skills Products": 4.0}, "final": 3.82, "officialFinal": 3.8, "status": "Aprobó"}, {"id": "2", "name": "200197676 - AGUILAR FRANCO, LEONARDO D.", "components": {"Performance Task 1": 4.2, "Project 1": 4.0, "Project 2": 4.2, "ITEP": 2.5, "Performance Task 2": 0.0, "Skills Products": 4.3}, "final": 3.13, "officialFinal": 3.1, "status": "Aprobó"}, {"id": "3", "name": "200150416 - ALVARADO CORRALES, NATALIA P.", "components": {"Performance Task 1": 4.0, "Project 1": 4.4, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.0, "Skills Products": 4.1}, "final": 3.775, "officialFinal": 3.8, "status": "Aprobó"}, {"id": "4", "name": "200189227 - AVILA NIEBLES, SEBASTIAN E.", "components": {"Performance Task 1": 3.5, "Project 1": 3.4, "Project 2": 4.0, "ITEP": 1.0, "Performance Task 2": 2.4, "Skills Products": 3.4}, "final": 2.755, "officialFinal": 2.8, "status": "Perdió"}, {"id": "5", "name": "200205997 - BARRERA SALAS, CARLA D.", "components": {"Performance Task 1": 4.7, "Project 1": 3.7, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 5.0, "Skills Products": 4.5}, "final": 3.985, "officialFinal": 4.0, "status": "Aprobó"}, {"id": "6", "name": "200209250 - BARRIOS BARRIOS, IAN D.", "components": {"Performance Task 1": 3.6, "Project 1": 3.4, "Project 2": 4.0, "ITEP": 5.0, "Performance Task 2": 5.0, "Skills Products": 4.0}, "final": 4.25, "officialFinal": 4.2, "status": "Aprobó"}, {"id": "7", "name": "200180835 - CARRILLO CASTAÑO, ALEJANDRA C.", "components": {"Performance Task 1": 3.5, "Project 1": 4.8, "Project 2": 4.0, "ITEP": 0.0, "Performance Task 2": 5.0, "Skills Products": 4.1}, "final": 3.21, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "8", "name": "200217832 - CORREA CUELLO, ALICIA M.", "components": {"Performance Task 1": 4.2, "Project 1": 3.5, "Project 2": 5.0, "ITEP": 5.0, "Performance Task 2": 5.0, "Skills Products": 3.5}, "final": 4.43, "officialFinal": 4.4, "status": "Aprobó"}, {"id": "9", "name": "200197785 - DE LA HOZ GARCIA, MARIA J.", "components": {"Performance Task 1": 3.5, "Project 1": 5.0, "Project 2": 4.5, "ITEP": 5.0, "Performance Task 2": 5.0, "Skills Products": 3.6}, "final": 4.49, "officialFinal": 4.5, "status": "Aprobó"}, {"id": "10", "name": "200206770 - FOLIACO ANAYA, JERONIMO J.", "components": {"Performance Task 1": 4.4, "Project 1": 4.0, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.3, "Skills Products": 4.0}, "final": 3.805, "officialFinal": 3.8, "status": "Aprobó"}, {"id": "11", "name": "200132531 - FRUTO MOGOLLON, DANIELA M.", "components": {"Performance Task 1": 3.4, "Project 1": 3.4, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.1, "Skills Products": 3.8}, "final": 3.505, "officialFinal": 3.5, "status": "Aprobó"}, {"id": "12", "name": "200222076 - GONZALEZ URUETA, ISAAC D.", "components": {"Performance Task 1": 2.2, "Project 1": 2.6, "Project 2": 4.0, "ITEP": 5.0, "Performance Task 2": 5.0, "Skills Products": 2.4}, "final": 3.68, "officialFinal": 3.7, "status": "Aprobó"}, {"id": "13", "name": "200214640 - HERAZO GOMEZ, ANDRES M.", "components": {"Performance Task 1": 4.5, "Project 1": 4.8, "Project 2": 4.0, "ITEP": 4.5, "Performance Task 2": 5.0, "Skills Products": 2.3}, "final": 4.215, "officialFinal": 4.2, "status": "Aprobó"}, {"id": "14", "name": "200185487 - HOYOS VEGA, SEBASTIAN", "components": {"Performance Task 1": 4.1, "Project 1": 4.0, "Project 2": 4.8, "ITEP": 2.5, "Performance Task 2": 4.8, "Skills Products": 2.3}, "final": 3.625, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "15", "name": "200212376 - LIONES URUETA, EDWARD E.", "components": {"Performance Task 1": 3.0, "Project 1": 4.4, "Project 2": 4.0, "ITEP": 4.5, "Performance Task 2": 5.0, "Skills Products": 3.0}, "final": 4.035, "officialFinal": 4.0, "status": "Aprobó"}, {"id": "16", "name": "200217692 - LLINAS GALLARDO, NATALIA L.", "components": {"Performance Task 1": 5.0, "Project 1": 5.0, "Project 2": 4.8, "ITEP": 5.0, "Performance Task 2": 5.0, "Skills Products": 4.7}, "final": 4.925, "officialFinal": 4.9, "status": "Aprobó"}, {"id": "17", "name": "200185749 - MANJARRES GARCIA, MARIANTONIA", "components": {"Performance Task 1": 3.7, "Project 1": 3.0, "Project 2": 5.0, "ITEP": 5.0, "Performance Task 2": 4.6, "Skills Products": 3.5}, "final": 4.22, "officialFinal": 4.2, "status": "Aprobó"}, {"id": "18", "name": "200202180 - MARTINEZ RUEDA, JHON J.", "components": {"Performance Task 1": 4.0, "Project 1": 3.2, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.6, "Skills Products": 4.7}, "final": 3.775, "officialFinal": 3.8, "status": "Aprobó"}, {"id": "19", "name": "200173377 - MOLINA GARCIA, ANYELINA", "components": {"Performance Task 1": 3.5, "Project 1": 4.6, "Project 2": 4.5, "ITEP": 2.5, "Performance Task 2": 4.2, "Skills Products": 4.2}, "final": 3.775, "officialFinal": 3.8, "status": "Aprobó"}, {"id": "20", "name": "200180215 - OLIVERO ARRIETA, CLAUDIA M.", "components": {"Performance Task 1": 4.1, "Project 1": 4.3, "Project 2": 4.3, "ITEP": 1.0, "Performance Task 2": 1.6, "Skills Products": 2.4}, "final": 2.755, "officialFinal": 2.8, "status": "Perdió"}, {"id": "21", "name": "200162118 - RUIZ HERNANDEZ, NAYLA", "components": {"Performance Task 1": 4.2, "Project 1": 2.3, "Project 2": 4.3, "ITEP": 1.0, "Performance Task 2": 4.1, "Skills Products": 3.4}, "final": 2.995, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "22", "name": "200203620 - SOLANO MONTENEGRO, JUAN J.", "components": {"Performance Task 1": 3.3, "Project 1": 4.3, "Project 2": 4.0, "ITEP": 2.5, "Performance Task 2": 5.0, "Skills Products": 3.6}, "final": 3.655, "officialFinal": 3.7, "status": "Aprobó"}]}, {"group": "Business English VII – NRC 5465", "students": 11, "componentAverages": {"Meeting": 3.24, "Market Gap Presentation": 3.98, "Pitch to Investors": 4.52, "Negotiation": 4.04, "Executive Portfolio": 3.2, "Short Exams": 3.15}, "weights": {"Meeting": 10, "Market Gap Presentation": 15, "Pitch to Investors": 15, "Negotiation": 20, "Executive Portfolio": 20, "Short Exams": 20}, "finalAverageRaw": 3.67, "finalAverage": 3.68, "passed": 9, "failed": 2, "passRate": 81.8, "failRate": 18.2, "highestComponent": "Pitch to Investors (4.52)", "lowestComponent": "Short Exams (3.15)", "studentsData": [{"id": "200194165", "name": "ASSAF SAID, NABIL", "components": {"Meeting": 2.8, "Market Gap Presentation": 3.1, "Pitch to Investors": 4.1, "Negotiation": 3.8, "Executive Portfolio": 3.8, "Short Exams": 1.9}, "final": 3.26, "officialFinal": 3.3, "status": "Aprobó"}, {"id": "200196318", "name": "BALLESTAS MARTINEZ, VALERY S.", "components": {"Meeting": 3.6, "Market Gap Presentation": 3.8, "Pitch to Investors": 5.0, "Negotiation": 4.0, "Executive Portfolio": 3.8, "Short Exams": 4.0}, "final": 4.04, "officialFinal": 4.0, "status": "Aprobó"}, {"id": "200202593", "name": "BLANCO FANDIÑO, SAMUEL F.", "components": {"Meeting": 3.8, "Market Gap Presentation": 4.0, "Pitch to Investors": 4.3, "Negotiation": 3.6, "Executive Portfolio": 2.5, "Short Exams": 3.7}, "final": 3.585, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "200219510", "name": "CARBONELL DEL GORDO, DANIELA P.", "components": {"Meeting": 4.0, "Market Gap Presentation": 4.6, "Pitch to Investors": 5.0, "Negotiation": 3.8, "Executive Portfolio": 5.0, "Short Exams": 3.8}, "final": 4.36, "officialFinal": 4.4, "status": "Aprobó"}, {"id": "200201551", "name": "CARREÑO ORTEGA, MARCO A.", "components": {"Meeting": 3.6, "Market Gap Presentation": 3.3, "Pitch to Investors": 4.0, "Negotiation": 4.2, "Executive Portfolio": 0.0, "Short Exams": 2.3}, "final": 2.755, "officialFinal": 2.8, "status": "Perdió"}, {"id": "200156788", "name": "CORREA AVILA, MARIA E.", "components": {"Meeting": 4.0, "Market Gap Presentation": 5.0, "Pitch to Investors": 4.8, "Negotiation": 4.0, "Executive Portfolio": 5.0, "Short Exams": 3.4}, "final": 4.35, "officialFinal": 4.3, "status": "Aprobó"}, {"id": "200217773", "name": "FERNANDEZ NASSAR, DANIEL A.", "components": {"Meeting": 4.2, "Market Gap Presentation": 3.5, "Pitch to Investors": 4.4, "Negotiation": 4.6, "Executive Portfolio": 3.8, "Short Exams": 4.6}, "final": 4.205, "officialFinal": 4.2, "status": "Aprobó"}, {"id": "200197220", "name": "MIELES BORJA, VALENTINA M.", "components": {"Meeting": 2.8, "Market Gap Presentation": 4.2, "Pitch to Investors": 4.0, "Negotiation": 4.2, "Executive Portfolio": 5.0, "Short Exams": 3.5}, "final": 4.05, "officialFinal": 4.0, "status": "Aprobó"}, {"id": "200191587", "name": "PEREZ CASTRO, JUAN D.", "components": {"Meeting": 2.8, "Market Gap Presentation": 4.0, "Pitch to Investors": 4.1, "Negotiation": 3.8, "Executive Portfolio": 2.5, "Short Exams": 1.2}, "final": 2.995, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "200215962", "name": "RICO AHUMADA, NATALIA S.", "components": {"Meeting": 4.0, "Market Gap Presentation": 5.0, "Pitch to Investors": 5.0, "Negotiation": 4.2, "Executive Portfolio": 2.5, "Short Exams": 4.1}, "final": 4.06, "officialFinal": 4.1, "status": "Aprobó"}, {"id": "200156096", "name": "TIMMS RUIZ, JORGE D.", "components": {"Meeting": 0.0, "Market Gap Presentation": 3.3, "Pitch to Investors": 5.0, "Negotiation": 4.2, "Executive Portfolio": 1.3, "Short Exams": 2.1}, "final": 2.765, "officialFinal": 2.8, "status": "Perdió"}]}, {"group": "Exigencia Inglés VIII – Social and Sustainability – NRC 3878", "students": 22, "componentAverages": {"Performance Task 1": 3.66, "Project 1": 3.59, "Performance Task 2": 3.31, "ITEP": 2.77, "Project 2": 4.28, "Skills Products": 4.16}, "weights": {"Performance Task 1": 15, "Project 1": 15, "Performance Task 2": 15, "ITEP": 25, "Project 2": 15, "Skills Products": 15}, "finalAverageRaw": 3.54, "finalAverage": 3.55, "passed": 22, "failed": 0, "passRate": 100.0, "failRate": 0.0, "highestComponent": "Project 2 (4.28)", "lowestComponent": "ITEP (2.77)", "studentsData": [{"id": "200196934", "name": "AMAYA SIERRA, MATEO", "components": {"Performance Task 1": 2.2, "Project 1": 0.0, "Performance Task 2": 4.8, "ITEP": 4.0, "Project 2": 4.4, "Skills Products": 3.0}, "final": 3.16, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200144878", "name": "ARIAS ELJADUE, ELIAN M.", "components": {"Performance Task 1": 4.7, "Project 1": 3.2, "Performance Task 2": 3.5, "ITEP": 0.0, "Project 2": 4.0, "Skills Products": 4.4}, "final": 2.97, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "200178165", "name": "ASCENCIO PEREZ, MARIA S.", "components": {"Performance Task 1": 4.3, "Project 1": 4.4, "Performance Task 2": 3.4, "ITEP": 1.0, "Project 2": 4.6, "Skills Products": 4.3}, "final": 3.4, "officialFinal": 3.4, "status": "Aprobó"}, {"id": "200221784", "name": "BADEL DAVILA, MARIA D.", "components": {"Performance Task 1": 4.0, "Project 1": 4.0, "Performance Task 2": 4.5, "ITEP": 4.5, "Project 2": 4.6, "Skills Products": 4.5}, "final": 4.365, "officialFinal": 4.4, "status": "Aprobó"}, {"id": "200182229", "name": "CASTILLO BARRAZA, JUAN S.", "components": {"Performance Task 1": 4.1, "Project 1": 2.0, "Performance Task 2": 3.6, "ITEP": 1.0, "Project 2": 4.0, "Skills Products": 4.7}, "final": 3.01, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "200194930", "name": "CAVADIA IGUARAN, ELIA D.", "components": {"Performance Task 1": 3.5, "Project 1": 3.8, "Performance Task 2": 4.3, "ITEP": 1.0, "Project 2": 4.0, "Skills Products": 4.4}, "final": 3.25, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200222863", "name": "DURAN MARIOTA, JUAN C.", "components": {"Performance Task 1": 3.6, "Project 1": 3.6, "Performance Task 2": 5.0, "ITEP": 5.0, "Project 2": 4.2, "Skills Products": 4.3}, "final": 4.355, "officialFinal": 4.4, "status": "Aprobó"}, {"id": "200198037", "name": "GARCIA DE LA OSSA, NATHALIA", "components": {"Performance Task 1": 3.5, "Project 1": 5.0, "Performance Task 2": 3.0, "ITEP": 2.5, "Project 2": 4.0, "Skills Products": 4.6}, "final": 3.64, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "200214427", "name": "GONZALEZ COLON, JOSE A.", "components": {"Performance Task 1": 3.2, "Project 1": 5.0, "Performance Task 2": 4.7, "ITEP": 4.0, "Project 2": 4.0, "Skills Products": 4.0}, "final": 4.135, "officialFinal": 4.1, "status": "Aprobó"}, {"id": "200182807", "name": "GUERRERO CANOLES, LAURA D.", "components": {"Performance Task 1": 3.2, "Project 1": 0.0, "Performance Task 2": 4.5, "ITEP": 2.5, "Project 2": 5.0, "Skills Products": 4.2}, "final": 3.16, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200197687", "name": "HERRERA CANO, ADRIAN F.", "components": {"Performance Task 1": 3.3, "Project 1": 4.4, "Performance Task 2": 0.0, "ITEP": 2.5, "Project 2": 4.2, "Skills Products": 3.8}, "final": 2.98, "officialFinal": 3.0, "status": "Aprobó"}, {"id": "200194264", "name": "MANJARRES MONTAÑES, FERNANDO A.", "components": {"Performance Task 1": 3.6, "Project 1": 3.6, "Performance Task 2": 4.2, "ITEP": 2.5, "Project 2": 4.0, "Skills Products": 4.4}, "final": 3.595, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "200209054", "name": "ORTEGA CONTRERAS, SANTIAGO D.", "components": {"Performance Task 1": 3.6, "Project 1": 4.0, "Performance Task 2": 4.0, "ITEP": 4.5, "Project 2": 4.4, "Skills Products": 4.1}, "final": 4.14, "officialFinal": 4.1, "status": "Aprobó"}, {"id": "200192924", "name": "PAZ ARRIETA, VALERIA", "components": {"Performance Task 1": 4.0, "Project 1": 4.4, "Performance Task 2": 0.0, "ITEP": 2.5, "Project 2": 4.0, "Skills Products": 4.6}, "final": 3.175, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200177667", "name": "PELAEZ ORTIZ, ANA K.", "components": {"Performance Task 1": 4.1, "Project 1": 5.0, "Performance Task 2": 3.0, "ITEP": 1.0, "Project 2": 4.0, "Skills Products": 4.4}, "final": 3.325, "officialFinal": 3.3, "status": "Aprobó"}, {"id": "200178036", "name": "PONTON DURAN, ANDREA M.", "components": {"Performance Task 1": 3.5, "Project 1": 5.0, "Performance Task 2": 2.4, "ITEP": 1.0, "Project 2": 4.0, "Skills Products": 4.5}, "final": 3.16, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200182413", "name": "RICO ARZUZA, ANDRES M.", "components": {"Performance Task 1": 3.5, "Project 1": 3.2, "Performance Task 2": 3.3, "ITEP": 2.5, "Project 2": 4.2, "Skills Products": 4.2}, "final": 3.385, "officialFinal": 3.4, "status": "Aprobó"}, {"id": "200096001", "name": "RODRIGUEZ CASTAÑO, CARLOS A.", "components": {"Performance Task 1": 4.1, "Project 1": 3.6, "Performance Task 2": 3.0, "ITEP": 1.0, "Project 2": 4.4, "Skills Products": 4.3}, "final": 3.16, "officialFinal": 3.2, "status": "Aprobó"}, {"id": "200223085", "name": "SOLANO CERVANTES, TALIANA", "components": {"Performance Task 1": 4.8, "Project 1": 0.0, "Performance Task 2": 3.2, "ITEP": 4.5, "Project 2": 4.0, "Skills Products": 3.2}, "final": 3.405, "officialFinal": 3.4, "status": "Aprobó"}, {"id": "200226819", "name": "TRUJILLO PIÑA, MARIA A.", "components": {"Performance Task 1": 3.5, "Project 1": 4.8, "Performance Task 2": 5.0, "ITEP": 5.0, "Project 2": 4.6, "Skills Products": 2.7}, "final": 4.34, "officialFinal": 4.3, "status": "Aprobó"}, {"id": "200207680", "name": "VERGARA MARIA, SARA G.", "components": {"Performance Task 1": 3.2, "Project 1": 5.0, "Performance Task 2": 0.0, "ITEP": 4.0, "Project 2": 4.6, "Skills Products": 4.4}, "final": 3.58, "officialFinal": 3.6, "status": "Aprobó"}, {"id": "200222330", "name": "VESGA SANDOVAL, DIEGO F.", "components": {"Performance Task 1": 3.0, "Project 1": 5.0, "Performance Task 2": 3.5, "ITEP": 4.5, "Project 2": 5.0, "Skills Products": 4.5}, "final": 4.275, "officialFinal": 4.3, "status": "Aprobó"}]}], "sharedComponents": {"ITEP": ["ITEP"], "Project 1": ["Project 1"], "Project 2": ["Project 2"], "Skills Products": ["Skills Products"], "Performance Task 1": ["Performance Task 1"], "Performance Task 2": ["Performance Task 2"], "Short Exams": ["Short Exams"], "Final Average": ["__FINAL__"]}};
+function fmt(n) { return Number(n).toFixed(2); }
+function fmt1(n) { return Number(n).toFixed(1); }
+function statusClass(n) { return n >= 4 ? "good" : n >= 3 ? "mid" : "low"; }
+function statusText(n) { return n >= 4 ? "Alto" : n >= 3 ? "Medio" : "Atención"; }
+
+function showTab(event, id) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  document.querySelectorAll(".tabbtn").forEach(b => b.classList.remove("active"));
+  event.target.classList.add("active");
+}
+
+function init() {
+  const courseNames = DATA.courses.map(c => c.group);
+  document.getElementById("groupFilter").innerHTML = courseNames.map(g => `<option value="${g}">${g}</option>`).join("");
+  document.getElementById("studentGroupFilter").innerHTML = `<option value="ALL">Todos los grupos</option>` + courseNames.map(g => `<option value="${g}">${g}</option>`).join("");
+  const components = Object.keys(DATA.sharedComponents);
+  document.getElementById("componentFilter").innerHTML = components.map(c => `<option value="${c}">${c}</option>`).join("");
+  document.getElementById("componentFilter").value = "ITEP";
+  document.getElementById("groupFilter").addEventListener("change", renderComponents);
+  document.getElementById("componentFilter").addEventListener("change", renderComponents);
+  document.getElementById("studentGroupFilter").addEventListener("change", renderStudents);
+  document.getElementById("searchBox").addEventListener("input", renderStudents);
+  renderAll();
+}
+
+function renderKpis() {
+  const totalStudents = DATA.courses.reduce((a,c)=>a+c.students,0);
+  const totalPassed = DATA.courses.reduce((a,c)=>a+c.passed,0);
+  const totalFailed = DATA.courses.reduce((a,c)=>a+c.failed,0);
+  const avgFinal = DATA.courses.reduce((a,c)=>a+c.finalAverage,0)/DATA.courses.length;
+  document.getElementById("kpis").innerHTML = `
+    <div class="kpi"><div class="label">Cursos analizados</div><div class="num">${DATA.courses.length}</div></div>
+    <div class="kpi"><div class="label">Estudiantes</div><div class="num">${totalStudents}</div></div>
+    <div class="kpi"><div class="label">Aprobados / Perdidos</div><div class="num">${totalPassed} / ${totalFailed}</div></div>
+    <div class="kpi"><div class="label">Promedio general oficial</div><div class="num">${fmt(avgFinal)}</div></div>
+  `;
+}
+
+function renderSummary() {
+  const rows = [...DATA.courses].sort((a,b)=>b.finalAverage-a.finalAverage);
+  document.querySelector("#summaryTable tbody").innerHTML = rows.map(c => `
+    <tr><td>${c.group}</td><td>${c.students}</td><td><span class="pill ${statusClass(c.finalAverage)}">${fmt(c.finalAverage)}</span></td><td><span class="pill good">${c.passed}</span></td><td><span class="pill low">${c.failed}</span></td><td>${c.passRate}%</td><td>${c.highestComponent}</td><td>${c.lowestComponent}</td></tr>
+  `).join("");
+}
+
+function renderComponents() {
+  const group = document.getElementById("groupFilter").value;
+  const course = DATA.courses.find(c => c.group === group);
+  document.getElementById("groupTitle").textContent = "Promedios por componente: " + group;
+  const compRows = Object.entries(course.componentAverages).map(([name, average]) => ({name, average, weight: course.weights[name]})).sort((a,b)=>b.average-a.average);
+  document.getElementById("groupBars").innerHTML = compRows.map(r => `
+    <div class="barrow"><div>${r.name} <small>(${r.weight}%)</small></div><div class="barbox"><div class="bar avgbar" style="width:${r.average/5*100}%"></div></div><div><b>${fmt(r.average)}</b></div></div>
+  `).join("");
+
+  const shared = document.getElementById("componentFilter").value;
+  document.getElementById("componentTitle").textContent = "Comparación: " + shared;
+  const aliases = DATA.sharedComponents[shared];
+  const rows = [];
+  for (const c of DATA.courses) {
+    let val = null, weight = null;
+    if (aliases.includes("__FINAL__")) { val = c.finalAverage; weight = 100; }
+    else {
+      for (const alias of aliases) {
+        if (c.componentAverages[alias] !== undefined) { val = c.componentAverages[alias]; weight = c.weights[alias]; }
+      }
+    }
+    if (val !== null) rows.push({group:c.group, average:val, weight});
+  }
+  rows.sort((a,b)=>b.average-a.average);
+  document.getElementById("componentBars").innerHTML = rows.map(r => `
+    <div class="barrow"><div>${r.group} <small>(${r.weight}%)</small></div><div class="barbox"><div class="bar avgbar" style="width:${r.average/5*100}%"></div></div><div><b>${fmt(r.average)}</b></div></div>
+  `).join("");
+  renderDetails();
+}
+
+function renderDetails() {
+  let rows = [];
+  DATA.courses.forEach(c => Object.entries(c.componentAverages).forEach(([component, average]) => rows.push({group:c.group, component, weight:c.weights[component], average})));
+  rows.sort((a,b)=>a.group.localeCompare(b.group) || b.average-a.average);
+  document.querySelector("#detailTable tbody").innerHTML = rows.map(r => `
+    <tr><td>${r.group}</td><td>${r.component}</td><td>${r.weight}%</td><td><b>${fmt(r.average)}</b></td><td><span class="pill ${statusClass(r.average)}">${statusText(r.average)}</span></td></tr>
+  `).join("");
+}
+
+function renderPassFail() {
+  const rows = [...DATA.courses].sort((a,b)=>b.passRate-a.passRate);
+  document.getElementById("passFailBars").innerHTML = rows.map(r => `
+    <div class="barrow"><div>${r.group}</div><div class="barbox"><div class="stackPass" style="width:${r.passRate}%"></div><div class="stackFail" style="width:${r.failRate}%"></div></div><div><b>${r.passed}/${r.students}</b></div></div>
+  `).join("");
+  document.querySelector("#passFailTable tbody").innerHTML = rows.map(r => `
+    <tr><td>${r.group}</td><td>${r.students}</td><td><span class="pill good">${r.passed}</span></td><td><span class="pill low">${r.failed}</span></td><td>${r.passRate}%</td><td>${r.failRate}%</td></tr>
+  `).join("");
+}
+
+function renderStudents() {
+  const group = document.getElementById("studentGroupFilter").value;
+  const query = document.getElementById("searchBox").value.toLowerCase();
+  let rows = [];
+  DATA.courses.forEach(c => {
+    if (group !== "ALL" && c.group !== group) return;
+    c.studentsData.forEach(s => {
+      if (!query || s.name.toLowerCase().includes(query) || String(s.id).includes(query)) rows.push({group:c.group, ...s});
+    });
+  });
+  rows.sort((a,b)=>a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+  document.querySelector("#studentTable tbody").innerHTML = rows.map(r => `
+    <tr><td>${r.group}</td><td>${r.id}</td><td>${r.name}</td><td>${fmt(r.final)}</td><td><span class="pill ${statusClass(r.officialFinal)}">${fmt1(r.officialFinal)}</span></td><td><span class="pill ${r.officialFinal>=3?'good':'low'}">${r.status}</span></td></tr>
+  `).join("");
+}
+
+function renderAll() { renderKpis(); renderSummary(); renderComponents(); renderPassFail(); renderStudents(); }
+init();
+</script>
+</body>
+</html>
